@@ -23,8 +23,11 @@ function toFirestoreFields(obj: any): any {
   return fields;
 }
 
+function randomId(): string {
+  return Math.random().toString(36).substring(2, 15);
+}
+
 async function createDocument(collection: string, docId: string, data: any) {
-  // Use POST to create with custom ID
   const url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DB}/documents/${collection}?documentId=${docId}`;
   
   const res = await fetch(url, {
@@ -35,6 +38,10 @@ async function createDocument(collection: string, docId: string, data: any) {
   
   if (!res.ok) {
     const err = await res.text();
+    // 如果文档已存在，使用随机 ID 重试
+    if (res.status === 409) {
+      return createDocument(collection, `${docId}_${randomId()}`, data);
+    }
     throw new Error(`Firestore error: ${res.status} - ${err}`);
   }
   return res.json();
@@ -50,13 +57,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (type === 'trend') {
-      await createDocument('trends', `trend_${data.rank}`, { ...data, updatedAt: new Date().toISOString() });
+      await createDocument('trends', `trend_${randomId()}`, { ...data, updatedAt: new Date().toISOString() });
     } else if (type === 'report') {
-      await createDocument('reports', `report_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
+      await createDocument('reports', `report_${randomId()}`, { ...data, timestamp: new Date().toISOString() });
     } else if (type === 'agent') {
-      await createDocument('agents', `agent_${data.id}`, { ...data, lastActive: new Date().toISOString() });
+      await createDocument('agents', `agent_${randomId()}`, { ...data, lastActive: new Date().toISOString() });
     } else if (type === 'tokenUsage') {
-      await createDocument('tokenUsage', `usage_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
+      await createDocument('tokenUsage', `usage_${randomId()}`, { ...data, timestamp: new Date().toISOString() });
     }
     
     return res.status(200).json({ status: 'ok', message: 'Data synced to Firestore' });
