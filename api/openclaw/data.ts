@@ -1,26 +1,44 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin with environment variables
-function getFirestoreClient() {
-  if (getApps().length === 0) {
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    
-    const serviceAccount = {
-      project_id: process.env.FIREBASE_PROJECT_ID || 'even-equinox-468010-n2',
-      client_email: process.env.FIREBASE_CLIENT_EMAIL,
-      private_key: privateKey,
-    };
-    
-    initializeApp({
-      credential: cert(serviceAccount),
-    });
-  }
-  return getFirestore();
+const FIRESTORE_PROJECT_ID = 'even-equinox-468010-n2';
+const FIRESTORE_DB = 'ai-studio-778af185-5d3d-46e5-8e93-6047a75845ec';
+const FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DB}/documents`;
+
+async function firestoreRequest(collection: string, docId: string, data: any, method: 'create' | 'update' = 'create') {
+  const url = `${FIRESTORE_URL}/${collection}/${docId}?updateMask.fieldPaths=*`;
+  
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fields: convertToFirestoreFields(data)
+    })
+  });
+  
+  return response.json();
 }
 
-const db = getFirestoreClient();
+function convertToFirestoreFields(obj: any): any {
+  const fields: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === null) {
+      fields[key] = { nullValue: null };
+    } else if (typeof value === 'string') {
+      fields[key] = { stringValue: value };
+    } else if (typeof value === 'number') {
+      fields[key] = { integerValue: String(value) };
+    } else if (typeof value === 'boolean') {
+      fields[key] = { booleanValue: value };
+    } else if (Array.isArray(value)) {
+      fields[key] = { arrayValue: { values: value.map(v => convertToFirestoreFields({ v }).fields.v) } };
+    } else if (typeof value === 'object') {
+      fields[key] = { mapValue: convertToFirestoreFields(value) };
+    }
+  }
+  return fields;
+}
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   if (request.method !== 'POST') {
@@ -32,14 +50,15 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
   try {
     if (type === 'trend') {
-      await setDoc(doc(db, 'trends', `trend_${data.rank}`), { ...data, updatedAt: serverTimestamp() });
+      await firestoreRequest('trends', `trend_${data.rank}`, { ...data, updatedAt: { timestampValue: new Date().toISOString() } });
     } else if (type === 'report') {
-      await addDoc(collection(db, 'reports'), { ...data, timestamp: serverTimestamp() });
+      await firestoreRequest('reports', `report_${Date.now()}`, { ...data, timestamp: { timestampValue: new Date().toISOString() } });
     } else if (type === 'agent') {
-      await setDoc(doc(db, 'agents', `agent_${data.id}`), { ...data, lastActive: serverTimestamp() });
+      await firestoreRequest('agents', `agent_${data.id}`, { ...data, lastActive: { timestampValue: new Date().toISOString() } });
     } else if (type === 'tokenUsage') {
-      await addDoc(collection(db, 'tokenUsage'), { ...data, timestamp: serverTimestamp() });
+      await firestoreRequest('tokenUsage', `usage_${Date.now()}`, { ...data, timestamp: { timestampValue: new Date().toISOString() } });
     }
+    
     return response.status(200).json({ status: 'ok', message: 'Data synced to Firestore' });
   } catch (error) {
     console.error('Error:', error);
