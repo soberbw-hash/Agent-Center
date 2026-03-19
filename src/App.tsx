@@ -74,6 +74,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [user, setUser] = useState<User | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Data States
   const [trends, setTrends] = useState<Trend[]>([]);
@@ -123,11 +125,26 @@ export default function App() {
   }, [user, isAuthReady]);
 
   const handleLogin = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+    setLoginError(null);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login Error:", error);
+      if (error.code === 'auth/popup-blocked') {
+        setLoginError("登录弹窗被浏览器拦截。请允许本站弹出窗口，或者在新标签页中打开本应用。");
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        setLoginError("登录请求被取消，请重试。");
+      } else if (error.message?.includes('INTERNAL ASSERTION FAILED')) {
+        setLoginError("Firebase 内部状态错误，请刷新页面后重试。");
+      } else {
+        setLoginError(error.message || "登录失败，请重试。");
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -157,11 +174,28 @@ export default function App() {
           </div>
           <button 
             onClick={handleLogin}
-            className="w-full py-4 bg-ink text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all"
+            disabled={isLoggingIn}
+            className="w-full py-4 bg-ink text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all disabled:opacity-50"
           >
             <LogIn size={20} />
-            Sign in with Google
+            {isLoggingIn ? '登录中...' : 'Sign in with Google'}
           </button>
+          
+          {loginError && (
+            <div className="text-sm text-coral bg-coral/10 p-3 rounded-xl text-left">
+              {loginError}
+              {(loginError.includes('拦截') || loginError.includes('内部状态错误')) && (
+                <a 
+                  href={window.location.href} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="block mt-2 underline font-semibold"
+                >
+                  在新标签页中打开应用 ↗
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
