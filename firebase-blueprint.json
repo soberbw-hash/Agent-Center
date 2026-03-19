@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "Trend": {
+      "title": "Trend",
+      "description": "A trending topic from OpenClaw analysis",
+      "type": "object",
+      "properties": {
+        "rank": { "type": "number" },
+        "score": { "type": "number" },
+        "trend": { "type": "string" },
+        "title": { "type": "string" },
+        "platforms": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["rank", "score", "title"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Daily report node",
+      "type": "object",
+      "properties": {
+        "time": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "status": { "type": "string", "enum": ["completed", "processing", "pending"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["time", "title", "status"]
+    },
+    "Agent": {
+      "title": "Agent",
+      "description": "Agent status information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "seed": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "gold", "coral"] },
+        "pulse": { "type": "boolean" },
+        "lastActive": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "seed", "status"]
+    },
+    "TokenUsage": {
+      "title": "TokenUsage",
+      "description": "Daily token usage stats",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "value": { "type": "number" },
+        "category": { "type": "string" }
+      },
+      "required": ["date", "value"]
+    }
+  },
+  "firestore": {
+    "/trends": {
+      "schema": "Trend",
+      "description": "Collection of global trends"
+    },
+    "/reports": {
+      "schema": "Report",
+      "description": "Collection of daily reports"
+    },
+    "/agents": {
+      "schema": "Agent",
+      "description": "Collection of agent statuses"
+    },
+    "/tokenUsage": {
+      "schema": "TokenUsage",
+      "description": "Collection of daily token usage"
+    }
+  }
+}

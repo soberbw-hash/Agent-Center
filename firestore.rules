@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: trends
+    // Fields: rank (number), score (number), trend (string), title (string), platforms (string), tags (list)
+    //
+    // Collection: reports
+    // Fields: time (string), title (string), content (string), status (string), timestamp (string)
+    //
+    // Collection: agents
+    // Fields: id (string), seed (string), status (string), pulse (bool), lastActive (string)
+    //
+    // Collection: tokenUsage
+    // Fields: date (string), value (number), category (string)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "soberbw@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    // Validation Functions
+    function isValidTrend(data) {
+      return data.rank is number && data.score is number && data.title is string && data.title.size() < 200;
+    }
+
+    function isValidReport(data) {
+      return data.time is string && data.title is string && data.status in ['completed', 'processing', 'pending'];
+    }
+
+    function isValidAgent(data) {
+      return data.id is string && data.seed is string && data.status in ['success', 'gold', 'coral'];
+    }
+
+    function isValidTokenUsage(data) {
+      return data.date is string && data.value is number;
+    }
+
+    // Rules
+    match /trends/{trendId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /agents/{agentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /tokenUsage/{usageId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

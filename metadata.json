@@ -1,0 +1,5 @@
+{
+  "name": "OpenClaw Agent Center",
+  "description": "A centralized dashboard for monitoring local OpenClaw agents, trends, and daily reports.",
+  "requestFramePermissions": []
+}
