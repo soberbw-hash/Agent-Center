@@ -1,16 +1,26 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from 'firebase-admin/firestore';
-import fs from 'fs';
-import path from 'path';
 
-if (!getApps().length) {
-  const firebaseConfigPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
-  const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
-  initializeApp({ credential: cert(firebaseConfig) });
+// Initialize Firebase Admin with environment variables
+function getFirestoreClient() {
+  if (getApps().length === 0) {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    
+    const serviceAccount = {
+      project_id: process.env.FIREBASE_PROJECT_ID || 'even-equinox-468010-n2',
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      private_key: privateKey,
+    };
+    
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+  }
+  return getFirestore();
 }
 
-const db = getFirestore();
+const db = getFirestoreClient();
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
   if (request.method !== 'POST') {
@@ -33,6 +43,6 @@ export default async function handler(request: VercelRequest, response: VercelRe
     return response.status(200).json({ status: 'ok', message: 'Data synced to Firestore' });
   } catch (error) {
     console.error('Error:', error);
-    return response.status(500).json({ status: 'error', message: 'Failed to sync' });
+    return response.status(500).json({ status: 'error', message: String(error) });
   }
 }
