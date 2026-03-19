@@ -313,9 +313,9 @@ export default function App() {
             {/* Main Dashboard Section */}
             <section className="grid grid-cols-12 gap-6">
               <div className="col-span-12 lg:col-span-8 card p-6 md:p-7 min-h-[760px] relative overflow-hidden bg-[linear-gradient(180deg,#FBF8F4_0%,#F8F3ED_100%)]">
-                <div className="blur-orb bg-gold w-[220px] h-[220px] top-[90px] right-[110px]"></div>
-                <div className="blur-orb bg-coral w-[180px] h-[180px] top-[300px] right-[280px]"></div>
-                <div className="blur-orb bg-blue-soft w-[150px] h-[150px] top-[130px] right-[10px]"></div>
+                <div className="blur-orb orb-gold w-[320px] h-[320px] top-[40px] right-[80px]"></div>
+                <div className="blur-orb orb-coral w-[260px] h-[260px] top-[260px] right-[240px]"></div>
+                <div className="blur-orb orb-blue w-[220px] h-[220px] top-[120px] right-[-40px]"></div>
 
                 <div className="flex flex-col gap-4 mb-6 relative z-10">
                   <div className="flex items-start justify-between gap-4">

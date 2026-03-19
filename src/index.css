@@ -215,9 +215,32 @@ body {
 .blur-orb {
   position: absolute;
   border-radius: 999px;
-  filter: blur(56px);
-  opacity: .13;
+  filter: blur(60px);
   pointer-events: none;
+  opacity: 0.85;
+  animation: floatOrb 15s ease-in-out infinite alternate;
+}
+
+.orb-gold {
+  background: radial-gradient(circle at center, rgba(255, 209, 102, 0.9) 0%, rgba(255, 183, 3, 0.6) 40%, transparent 70%);
+  animation-delay: 0s;
+}
+
+.orb-coral {
+  background: radial-gradient(circle at center, rgba(255, 107, 107, 0.9) 0%, rgba(239, 71, 111, 0.6) 40%, transparent 70%);
+  animation-delay: -5s;
+}
+
+.orb-blue {
+  background: radial-gradient(circle at center, rgba(77, 204, 189, 0.8) 0%, rgba(17, 138, 178, 0.5) 40%, transparent 70%);
+  animation-delay: -10s;
+}
+
+@keyframes floatOrb {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.7; }
+  33% { transform: translate(35px, -45px) scale(1.15); opacity: 0.95; }
+  66% { transform: translate(-25px, 25px) scale(0.85); opacity: 0.8; }
+  100% { transform: translate(45px, 45px) scale(1.05); opacity: 0.75; }
 }
 
 .score-ring {
