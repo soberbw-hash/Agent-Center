@@ -23,11 +23,12 @@ function toFirestoreFields(obj: any): any {
   return fields;
 }
 
-async function setDocument(collection: string, docId: string, data: any) {
-  const url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DB}/documents/${collection}/${docId}?updateMask.fieldPaths=*`;
+async function createDocument(collection: string, docId: string, data: any) {
+  // Use POST to create with custom ID
+  const url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DB}/documents/${collection}?documentId=${docId}`;
   
   const res = await fetch(url, {
-    method: 'PATCH',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: toFirestoreFields(data) })
   });
@@ -49,13 +50,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (type === 'trend') {
-      await setDocument('trends', `trend_${data.rank}`, { ...data, updatedAt: new Date().toISOString() });
+      await createDocument('trends', `trend_${data.rank}`, { ...data, updatedAt: new Date().toISOString() });
     } else if (type === 'report') {
-      await setDocument('reports', `report_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
+      await createDocument('reports', `report_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
     } else if (type === 'agent') {
-      await setDocument('agents', `agent_${data.id}`, { ...data, lastActive: new Date().toISOString() });
+      await createDocument('agents', `agent_${data.id}`, { ...data, lastActive: new Date().toISOString() });
     } else if (type === 'tokenUsage') {
-      await setDocument('tokenUsage', `usage_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
+      await createDocument('tokenUsage', `usage_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
     }
     
     return res.status(200).json({ status: 'ok', message: 'Data synced to Firestore' });
