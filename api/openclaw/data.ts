@@ -38,7 +38,6 @@ async function createDocument(collection: string, docId: string, data: any) {
   
   if (!res.ok) {
     const err = await res.text();
-    // 如果文档已存在，使用随机 ID 重试
     if (res.status === 409) {
       return createDocument(collection, `${docId}_${randomId()}`, data);
     }
@@ -64,6 +63,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await createDocument('agents', `agent_${randomId()}`, { ...data, lastActive: new Date().toISOString() });
     } else if (type === 'tokenUsage') {
       await createDocument('tokenUsage', `usage_${randomId()}`, { ...data, timestamp: new Date().toISOString() });
+    } else if (type === 'instreet') {
+      await createDocument('instreet', `instreet_${randomId()}`, { ...data, timestamp: new Date().toISOString() });
     }
     
     return res.status(200).json({ status: 'ok', message: 'Data synced to Firestore' });
