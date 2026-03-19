@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Home, 
   Flame, 
@@ -13,19 +13,11 @@ import {
   Plus,
   Satellite,
   CheckCircle2,
-  AlertCircle,
-  LogIn
+  AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/src/lib/utils';
-import { auth, db } from './firebase';
-import { 
-  onAuthStateChanged, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut,
-  User
-} from 'firebase/auth';
+import { db } from './firebase';
 import { 
   collection, 
   onSnapshot, 
@@ -72,10 +64,6 @@ interface TokenUsage {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Data States
   const [trends, setTrends] = useState<Trend[]>([]);
@@ -83,19 +71,8 @@ export default function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tokenUsage, setTokenUsage] = useState<TokenUsage[]>([]);
 
-  // Auth Listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsAuthReady(true);
-    });
-    return () => unsubscribe();
-  }, []);
-
   // Firestore Listeners
   useEffect(() => {
-    if (!user || !isAuthReady) return;
-
     const trendsQuery = query(collection(db, 'trends'), orderBy('rank', 'asc'), limit(10));
     const unsubscribeTrends = onSnapshot(trendsQuery, (snapshot) => {
       setTrends(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Trend)));
@@ -122,84 +99,7 @@ export default function App() {
       unsubscribeAgents();
       unsubscribeUsage();
     };
-  }, [user, isAuthReady]);
-
-  const handleLogin = async () => {
-    if (isLoggingIn) return;
-    setIsLoggingIn(true);
-    setLoginError(null);
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      console.error("Login Error:", error);
-      if (error.code === 'auth/popup-blocked') {
-        setLoginError("登录弹窗被浏览器拦截。请允许本站弹出窗口，或者在新标签页中打开本应用。");
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        setLoginError("登录请求被取消，请重试。");
-      } else if (error.message?.includes('INTERNAL ASSERTION FAILED')) {
-        setLoginError("Firebase 内部状态错误，请刷新页面后重试。");
-      } else {
-        setLoginError(error.message || "登录失败，请重试。");
-      }
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleLogout = () => signOut(auth);
-
-  if (!isAuthReady) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-shell">
-        <div className="flex flex-col items-center gap-4">
-          <Satellite className="text-ink animate-pulse" size={48} />
-          <div className="text-ink font-bold">Initializing OpenClaw...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen grid place-items-center bg-shell p-4">
-        <div className="card p-10 max-w-md w-full text-center space-y-6">
-          <div className="w-20 h-20 rounded-3xl bg-ink text-gold flex items-center justify-center text-3xl mx-auto shadow-soft">
-            <Satellite size={40} />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Agent Center</h1>
-            <p className="text-text-soft">Please sign in to access your OpenClaw dashboard and real-time data.</p>
-          </div>
-          <button 
-            onClick={handleLogin}
-            disabled={isLoggingIn}
-            className="w-full py-4 bg-ink text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:opacity-90 transition-all disabled:opacity-50"
-          >
-            <LogIn size={20} />
-            {isLoggingIn ? '登录中...' : 'Sign in with Google'}
-          </button>
-          
-          {loginError && (
-            <div className="text-sm text-coral bg-coral/10 p-3 rounded-xl text-left">
-              {loginError}
-              {(loginError.includes('拦截') || loginError.includes('内部状态错误')) && (
-                <a 
-                  href={window.location.href} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="block mt-2 underline font-semibold"
-                >
-                  在新标签页中打开应用 ↗
-                </a>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <div className="min-h-screen p-4 md:p-8">
@@ -230,9 +130,9 @@ export default function App() {
             </div>
 
             <div className="hidden xl:flex flex-col items-center gap-4 mt-auto">
-              <button onClick={handleLogout} className="nav-btn card"><LogOut size={20} /></button>
+              <button className="nav-btn card"><Settings size={20} /></button>
               <img 
-                src={user.photoURL || "https://api.dicebear.com/7.x/notionists/svg?seed=bowen"} 
+                src="https://api.dicebear.com/7.x/notionists/svg?seed=bowen" 
                 alt="avatar" 
                 className="w-14 h-14 rounded-full border border-line bg-white shadow-soft" 
               />
@@ -261,7 +161,7 @@ export default function App() {
                     <span className="pill subtle-pill">系统在线</span>
                     <span>下次热榜刷新 12:30</span>
                   </div>
-                  <h1 className="text-[2.35rem] font-bold tracking-[-0.03em]">Hi, {user.displayName?.split(' ')[0] || 'User'}</h1>
+                  <h1 className="text-[2.35rem] font-bold tracking-[-0.03em]">Hi, Commander</h1>
                   <p className="muted-text mt-2 text-[15px]">OpenClaw Agent Center · 把热点、Agent、内容反馈和日报全部收进一个更统一、更安静的控制台</p>
                 </div>
 
