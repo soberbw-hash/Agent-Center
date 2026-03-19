@@ -2,66 +2,65 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const FIRESTORE_PROJECT_ID = 'even-equinox-468010-n2';
 const FIRESTORE_DB = 'ai-studio-778af185-5d3d-46e5-8e93-6047a75845ec';
-const FIRESTORE_URL = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DB}/documents`;
 
-async function firestoreRequest(collection: string, docId: string, data: any, method: 'create' | 'update' = 'create') {
-  const url = `${FIRESTORE_URL}/${collection}/${docId}?updateMask.fieldPaths=*`;
-  
-  const response = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      fields: convertToFirestoreFields(data)
-    })
-  });
-  
-  return response.json();
+function toFirestoreValue(value: any): any {
+  if (value === null || value === undefined) return { nullValue: null };
+  if (typeof value === 'string') return { stringValue: value };
+  if (typeof value === 'number') return { integerValue: String(value) };
+  if (typeof value === 'boolean') return { booleanValue: value };
+  if (Array.isArray(value)) return { arrayValue: { values: value.map(v => toFirestoreValue(v)) }};
+  if (typeof value === 'object') return { mapValue: { fields: toFirestoreFields(value) }};
+  return { stringValue: String(value) };
 }
 
-function convertToFirestoreFields(obj: any): any {
+function toFirestoreFields(obj: any): any {
   const fields: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value === null) {
-      fields[key] = { nullValue: null };
-    } else if (typeof value === 'string') {
-      fields[key] = { stringValue: value };
-    } else if (typeof value === 'number') {
-      fields[key] = { integerValue: String(value) };
-    } else if (typeof value === 'boolean') {
-      fields[key] = { booleanValue: value };
-    } else if (Array.isArray(value)) {
-      fields[key] = { arrayValue: { values: value.map(v => convertToFirestoreFields({ v }).fields.v) } };
-    } else if (typeof value === 'object') {
-      fields[key] = { mapValue: convertToFirestoreFields(value) };
+  if (obj && typeof obj === 'object') {
+    for (const [key, value] of Object.entries(obj)) {
+      fields[key] = toFirestoreValue(value);
     }
   }
   return fields;
 }
 
-export default async function handler(request: VercelRequest, response: VercelResponse) {
-  if (request.method !== 'POST') {
-    return response.status(405).json({ status: 'error', message: 'Method not allowed' });
+async function setDocument(collection: string, docId: string, data: any) {
+  const url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DB}/documents/${collection}/${docId}?updateMask.fieldPaths=*`;
+  
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: toFirestoreFields(data) })
+  });
+  
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Firestore error: ${res.status} - ${err}`);
+  }
+  return res.json();
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ status: 'error', message: 'Method not allowed' });
   }
 
-  const { type, data } = request.body;
+  const { type, data } = req.body;
   console.log(`Received ${type} data:`, data);
 
   try {
     if (type === 'trend') {
-      await firestoreRequest('trends', `trend_${data.rank}`, { ...data, updatedAt: { timestampValue: new Date().toISOString() } });
+      await setDocument('trends', `trend_${data.rank}`, { ...data, updatedAt: new Date().toISOString() });
     } else if (type === 'report') {
-      await firestoreRequest('reports', `report_${Date.now()}`, { ...data, timestamp: { timestampValue: new Date().toISOString() } });
+      await setDocument('reports', `report_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
     } else if (type === 'agent') {
-      await firestoreRequest('agents', `agent_${data.id}`, { ...data, lastActive: { timestampValue: new Date().toISOString() } });
+      await setDocument('agents', `agent_${data.id}`, { ...data, lastActive: new Date().toISOString() });
     } else if (type === 'tokenUsage') {
-      await firestoreRequest('tokenUsage', `usage_${Date.now()}`, { ...data, timestamp: { timestampValue: new Date().toISOString() } });
+      await setDocument('tokenUsage', `usage_${Date.now()}`, { ...data, timestamp: new Date().toISOString() });
     }
     
-    return response.status(200).json({ status: 'ok', message: 'Data synced to Firestore' });
+    return res.status(200).json({ status: 'ok', message: 'Data synced to Firestore' });
   } catch (error) {
     console.error('Error:', error);
-    return response.status(500).json({ status: 'error', message: String(error) });
+    return res.status(500).json({ status: 'error', message: String(error) });
   }
 }
